@@ -29,5 +29,36 @@ frappe.ui.form.on("GIC Industry Profile", {
 				},
 			});
 		});
+
+		frm.add_custom_button(__("Simplify Forms"), () => {
+			frappe.call({
+				method: "gic_erp.setup.ui_simplifier.simplify_forms_from_ui",
+				freeze: true,
+				freeze_message: __("Simplifying Sales Invoice, Purchase Invoice and Payment Entry..."),
+				callback(r) {
+					if (r.exc || !r.message) return;
+					const { hidden_count, skipped } = r.message;
+					let message = __("{0} sections hidden. Reload any open forms to see the change.", [
+						hidden_count,
+					]);
+					if (skipped.length) {
+						message +=
+							"<br><br>" +
+							__("Kept visible:") +
+							"<ul>" +
+							skipped.map((s) => `<li>${frappe.utils.escape_html(s)}</li>`).join("") +
+							"</ul>";
+					}
+					frappe.msgprint({ title: __("Forms Simplified"), message, indicator: "green" });
+				},
+				error() {
+					frappe.msgprint({
+						title: __("Could not simplify forms"),
+						message: __("Check the Error Log, then try again."),
+						indicator: "red",
+					});
+				},
+			});
+		});
 	},
 });

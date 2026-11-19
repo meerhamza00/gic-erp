@@ -113,7 +113,7 @@
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-11-19 17:00:00.000000",
+ "modified": "2026-11-19 18:30:00.000000",
  "modified_by": "Administrator",
  "module": "GIC ERP",
  "name": "GIC Industry Profile",
@@ -127,6 +127,14 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "read": 1,
+   "role": "GIC Factory Owner"
+  },
+  {
+   "read": 1,
+   "role": "GIC Munshi User"
   }
  ],
  "sort_field": "modified",

@@ -90,3 +90,26 @@ class TestGICIndustryProfile(FrappeTestCase):
 		_save_profile("Importer & Exporter")
 		after = frappe.db.get_value("Module Profile", MODULE_PROFILE_NAME, "modified")
 		self.assertEqual(before, after)
+
+	def test_regular_user_sidebar_excludes_hidden_workspaces(self):
+		# Workspace Managers still receive hidden pages (the desk CSS hides them), so check
+		# what an ordinary staff user actually gets from the sidebar API.
+		from frappe.desk.desktop import get_workspace_sidebar_items
+
+		_save_profile("Wholesale & Mandi Trader")
+		email = "gic-sidebar-check@example.com"
+		if not frappe.db.exists("User", email):
+			user = frappe.get_doc(
+				{"doctype": "User", "email": email, "first_name": "Sidebar", "send_welcome_email": 0}
+			).insert(ignore_permissions=True)
+			user.add_roles("Accounts User", "Stock User", "GIC Munshi User")
+
+		try:
+			frappe.set_user(email)
+			names = [p["name"] for p in get_workspace_sidebar_items()["pages"]]
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertIn("GIC Easy Desk", names)
+		for hidden in ("Assets", "Manufacturing", "Projects", "Quality", "Support"):
+			self.assertNotIn(hidden, names)

@@ -271,6 +271,9 @@ app_license = "mit"
 
 required_apps = ["erpnext"]
 
+# Roles, local units (Mann, Bori, Petti...) and form decluttering.
+after_install = "gic_erp.install.after_install"
+
 # Frappe re-syncs standard workspaces on migrate, which can un-hide them.
 # Re-apply the Industry Profile's screen visibility after every migrate.
 after_migrate = ["gic_erp.setup.module_visibility.after_migrate"]
@@ -279,9 +282,10 @@ after_migrate = ["gic_erp.setup.module_visibility.after_migrate"]
 # Only records owned by GIC: module "GIC ERP" or a "GIC " name prefix.
 # The "GIC Standard User" Module Profile is NOT a fixture: it is computed per site
 # from the GIC Industry Profile, so shipping one site's copy would be wrong.
+# GIC workspaces are standard workspaces in gic_erp/gic_erp/workspace/ (synced on
+# migrate), not fixtures, so they are not listed here.
 fixtures = [
 	{"dt": "Custom Field", "filters": [["module", "=", "GIC ERP"]]},
 	{"dt": "Property Setter", "filters": [["module", "=", "GIC ERP"]]},
 	{"dt": "Role", "filters": [["name", "like", "GIC %"]]},
-	{"dt": "Workspace", "filters": [["name", "like", "GIC %"]]},
 ]
