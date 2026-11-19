@@ -4,6 +4,7 @@
 
 import frappe
 
+from gic_erp.billing.kacha_pakka import ensure_bill_mode_setup
 from gic_erp.setup.branding import apply_branding
 from gic_erp.setup.custom_fields import ensure_custom_fields
 from gic_erp.setup.module_visibility import restrict_admin_workspaces
@@ -40,6 +41,7 @@ def after_install():
 	setup_local_defaults()
 	setup_manufacturing_and_permissions()
 	setup_branding()
+	setup_billing()
 
 
 def setup_local_defaults():
@@ -55,6 +57,12 @@ def setup_manufacturing_and_permissions():
 	ensure_roles()  # permissions need the roles to exist
 	ensure_custom_fields()
 	apply_gic_permissions()
+
+
+def setup_billing():
+	"""Kacha / Pakka bill type field and its tax-field rules. Install and patch."""
+	ensure_custom_fields()
+	ensure_bill_mode_setup()
 
 
 def setup_branding():

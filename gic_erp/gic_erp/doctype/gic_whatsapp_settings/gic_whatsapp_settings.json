@@ -1,0 +1,100 @@
+{
+ "actions": [],
+ "creation": "2026-11-19 19:00:00.000000",
+ "description": "WhatsApp gateway for bill and payment messages to customers.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "connection_section",
+  "enabled",
+  "api_endpoint",
+  "api_token",
+  "events_section",
+  "send_on_invoice",
+  "send_on_payment",
+  "test_section",
+  "test_mobile"
+ ],
+ "fields": [
+  {
+   "fieldname": "connection_section",
+   "fieldtype": "Section Break",
+   "label": "Gateway"
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "0",
+   "description": "Master switch. GIC Industry Profile > WhatsApp Alerts must also be on."
+  },
+  {
+   "fieldname": "api_endpoint",
+   "fieldtype": "Data",
+   "label": "Gateway URL",
+   "options": "URL",
+   "mandatory_depends_on": "eval:doc.enabled",
+   "description": "Webhook that delivers the message, e.g. an n8n workflow or a WhatsApp gateway. GICNEXT POSTs JSON: to, message, reference_doctype, reference_name."
+  },
+  {
+   "fieldname": "api_token",
+   "fieldtype": "Password",
+   "label": "API Token",
+   "length": 512,
+   "description": "Sent as 'Authorization: Bearer <token>'. Stored encrypted."
+  },
+  {
+   "fieldname": "events_section",
+   "fieldtype": "Section Break",
+   "label": "When to send"
+  },
+  {
+   "fieldname": "send_on_invoice",
+   "fieldtype": "Check",
+   "label": "Send on Sales Invoice submit",
+   "default": "1"
+  },
+  {
+   "fieldname": "send_on_payment",
+   "fieldtype": "Check",
+   "label": "Send on Payment received",
+   "default": "1"
+  },
+  {
+   "fieldname": "test_section",
+   "fieldtype": "Section Break",
+   "label": "Test",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "test_mobile",
+   "fieldtype": "Data",
+   "label": "Test Mobile No",
+   "options": "Phone",
+   "description": "Save, then use 'Send Test Message'. Format 03001234567 or 923001234567."
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-19 19:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "GIC ERP",
+ "name": "GIC WhatsApp Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1,
+   "print": 0,
+   "share": 0,
+   "email": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

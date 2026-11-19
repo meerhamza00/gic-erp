@@ -12,7 +12,25 @@ def _f(**df) -> dict:
 	return {"module": MODULE, **df}
 
 
+PAKKA = "Pakka (Tax Invoice)"
+KACHA = "Kacha (Estimate Slip)"
+
 CUSTOM_FIELDS: dict[str, list[dict]] = {
+	"Sales Invoice": [
+		_f(
+			fieldname="gic_bill_mode",
+			label="Bill Type",
+			fieldtype="Select",
+			options=f"{PAKKA}\n{KACHA}",
+			default=PAKKA,
+			insert_after="customer",
+			in_list_view=1,
+			in_standard_filter=1,
+			print_hide=1,
+			no_copy=0,
+			description="Kacha: estimate / delivery memo without sales tax. It still posts to the books.",
+		),
+	],
 	"Stock Entry": [
 		_f(
 			fieldname="gic_foundry_section",

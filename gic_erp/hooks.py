@@ -283,7 +283,18 @@ doc_events = {
 	"Stock Entry": {
 		"validate": "gic_erp.manufacturing.foundry.validate_burning_loss",
 	},
+	# Kacha / Pakka billing and WhatsApp bill messages (Milestone 4).
+	"Sales Invoice": {
+		"before_validate": "gic_erp.billing.kacha_pakka.before_validate",
+		"validate": "gic_erp.billing.kacha_pakka.validate",
+		"on_submit": "gic_erp.services.whatsapp.on_sales_invoice_submit",
+	},
+	"Payment Entry": {
+		"on_submit": "gic_erp.services.whatsapp.on_payment_entry_submit",
+	},
 }
+
+doctype_js = {"Sales Invoice": "public/js/sales_invoice.js"}
 
 # Exported with `bench --site <site> export-fixtures --app gic_erp`.
 # Only records owned by GIC: module "GIC ERP" or a "GIC " name prefix.
