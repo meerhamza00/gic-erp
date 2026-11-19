@@ -278,12 +278,20 @@ after_install = "gic_erp.install.after_install"
 # Re-apply the Industry Profile's screen visibility after every migrate.
 after_migrate = ["gic_erp.setup.module_visibility.after_migrate"]
 
+# Foundry burning loss on Stock Entry (Milestone 3).
+doc_events = {
+	"Stock Entry": {
+		"validate": "gic_erp.manufacturing.foundry.validate_burning_loss",
+	},
+}
+
 # Exported with `bench --site <site> export-fixtures --app gic_erp`.
 # Only records owned by GIC: module "GIC ERP" or a "GIC " name prefix.
 # The "GIC Standard User" Module Profile is NOT a fixture: it is computed per site
 # from the GIC Industry Profile, so shipping one site's copy would be wrong.
 # GIC workspaces are standard workspaces in gic_erp/gic_erp/workspace/ (synced on
 # migrate), not fixtures, so they are not listed here.
+# GIC role permissions (Custom DocPerm) are NOT fixtures either: see setup/permissions.py.
 fixtures = [
 	{"dt": "Custom Field", "filters": [["module", "=", "GIC ERP"]]},
 	{"dt": "Property Setter", "filters": [["module", "=", "GIC ERP"]]},

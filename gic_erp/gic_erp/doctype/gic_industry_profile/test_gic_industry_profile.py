@@ -6,6 +6,9 @@ from frappe.tests.utils import FrappeTestCase
 
 from gic_erp.setup.module_visibility import MODULE_PROFILE_NAME
 
+# Don't let the test runner create and commit ERPNext's _Test Company fixtures.
+test_ignore = ["Company"]
+
 FLAGS = (
 	"enable_fbr_invoicing",
 	"enable_whatsapp_alerts",

@@ -4,6 +4,8 @@
 
 import frappe
 
+from gic_erp.setup.custom_fields import ensure_custom_fields
+from gic_erp.setup.permissions import apply_gic_permissions
 from gic_erp.setup.ui_simplifier import simplify_forms
 
 EASY_DESK_ROUTE = "/app/gic-easy-desk"
@@ -34,6 +36,7 @@ UOM_CONVERSIONS = (
 
 def after_install():
 	setup_local_defaults()
+	setup_manufacturing_and_permissions()
 
 
 def setup_local_defaults():
@@ -42,6 +45,13 @@ def setup_local_defaults():
 	ensure_uoms()
 	ensure_uom_conversions()
 	simplify_forms()
+
+
+def setup_manufacturing_and_permissions():
+	"""Foundry fields on Stock Entry and least-privilege GIC role permissions. Install and patch."""
+	ensure_roles()  # permissions need the roles to exist
+	ensure_custom_fields()
+	apply_gic_permissions()
 
 
 def ensure_roles():
