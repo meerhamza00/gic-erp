@@ -1,5 +1,5 @@
 app_name = "gic_erp"
-app_title = "GIC ERP"
+app_title = "GICNEXT"
 app_publisher = "Gujranwala Incubation Center"
 app_description = "Plug-and-play modular ERP for Gujranwala SMEs, built on ERPNext v15"
 app_email = "dev@gic.local"
@@ -297,3 +297,15 @@ fixtures = [
 	{"dt": "Property Setter", "filters": [["module", "=", "GIC ERP"]]},
 	{"dt": "Role", "filters": [["name", "like", "GIC %"]]},
 ]
+
+# GICNEXT branding. gic_erp is installed after ERPNext, so these override ERPNext's
+# logo, favicon and splash. Name, help menu, email footer and letterhead are set in
+# setup/branding.py (on install, by patch, and after every migrate).
+app_logo_url = "/assets/gic_erp/images/gicnext-logo.png"
+app_include_css = "gicnext.bundle.css"
+web_include_css = "gicnext_web.bundle.css"
+website_context = {
+	"favicon": "/assets/gic_erp/images/gicnext-favicon.png",
+	"splash_image": "/assets/gic_erp/images/gicnext-splash.png",
+}
+email_brand_image = "assets/gic_erp/images/gicnext-logo.png"

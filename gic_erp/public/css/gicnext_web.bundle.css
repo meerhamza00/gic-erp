@@ -1,0 +1,64 @@
+/* GICNEXT login and website pages. Hashed bundle, loaded through hooks.web_include_css. */
+
+@font-face {
+	font-family: "Plus Jakarta Sans";
+	font-weight: 400;
+	font-display: swap;
+	src: url("/assets/gic_erp/fonts/PJS-Regular.ttf") format("truetype");
+}
+@font-face {
+	font-family: "Plus Jakarta Sans";
+	font-weight: 600;
+	font-display: swap;
+	src: url("/assets/gic_erp/fonts/PJS-SemiBold.ttf") format("truetype");
+}
+@font-face {
+	font-family: "Plus Jakarta Sans";
+	font-weight: 800;
+	font-display: swap;
+	src: url("/assets/gic_erp/fonts/PJS-ExtraBold.ttf") format("truetype");
+}
+
+/* Frappe's login bundle loads after this file, so selectors carry extra specificity. */
+html:root {
+	--gic-indigo: #1c119c;
+	--gic-accent: #15803d;
+	--gic-accent-dark: #166534;
+	--font-stack: "Plus Jakarta Sans", "InterVariable", "Inter", -apple-system, "Segoe UI", Arial,
+		sans-serif;
+}
+
+html body {
+	font-family: var(--font-stack);
+	background: #f8fafc;
+	border-top: 4px solid transparent;
+	border-image: linear-gradient(90deg, #1c119c, #088516) 1;
+}
+
+/* Login card: swap in the wordmark that carries "by Gujranwala Incubation Center".
+   Browsers without content:url() on images keep the plain GICNEXT wordmark. */
+.page-card-head img.app-logo {
+	content: url("/assets/gic_erp/images/gicnext-login.png");
+	width: auto;
+	max-width: 280px;
+	height: auto;
+	max-height: 60px;
+}
+
+html body .page-card-head h4 {
+	color: var(--gic-indigo);
+	font-weight: 800;
+}
+
+html body .btn-primary,
+html body .btn-primary:focus {
+	background-color: var(--gic-accent) !important;
+	border-color: var(--gic-accent) !important;
+	color: #fff !important;
+}
+html body .btn-primary:hover,
+html body .btn-primary:active {
+	background-color: var(--gic-accent-dark) !important;
+	border-color: var(--gic-accent-dark) !important;
+	color: #fff !important;
+}

@@ -1,0 +1,107 @@
+/* GICNEXT desk theme. Tokens from the GIC brand (gicgujranwala.pk).
+   Built as a hashed bundle (cache-busted on every build) and loaded through hooks.app_include_css, so ERPNext/Frappe files stay untouched. */
+
+@font-face {
+	font-family: "Plus Jakarta Sans";
+	font-weight: 400;
+	font-display: swap;
+	src: url("/assets/gic_erp/fonts/PJS-Regular.ttf") format("truetype");
+}
+@font-face {
+	font-family: "Plus Jakarta Sans";
+	font-weight: 500;
+	font-display: swap;
+	src: url("/assets/gic_erp/fonts/PJS-Medium.ttf") format("truetype");
+}
+@font-face {
+	font-family: "Plus Jakarta Sans";
+	font-weight: 600;
+	font-display: swap;
+	src: url("/assets/gic_erp/fonts/PJS-SemiBold.ttf") format("truetype");
+}
+@font-face {
+	font-family: "Plus Jakarta Sans";
+	font-weight: 700;
+	font-display: swap;
+	src: url("/assets/gic_erp/fonts/PJS-Bold.ttf") format("truetype");
+}
+@font-face {
+	font-family: "Plus Jakarta Sans";
+	font-weight: 800;
+	font-display: swap;
+	src: url("/assets/gic_erp/fonts/PJS-ExtraBold.ttf") format("truetype");
+}
+
+:root {
+	--gic-indigo: #1c119c;
+	--gic-green: #088516;
+	--gic-accent: #15803d;
+	--gic-accent-dark: #166534;
+	--gic-heading: #0f172a;
+	--gic-ink: #334155;
+	--gic-green-tint: #edf6ef;
+	--gic-indigo-tint: #eeedf8;
+	--gic-gradient: linear-gradient(90deg, #1c119c, #088516);
+	--font-stack: "Plus Jakarta Sans", "InterVariable", "Inter", -apple-system, "Segoe UI", Arial,
+		sans-serif;
+}
+
+[data-theme="light"] {
+	--primary: var(--gic-indigo);
+	--primary-color: var(--gic-indigo);
+	--brand-color: var(--gic-indigo);
+	--btn-primary: var(--gic-accent);
+	--heading-color: var(--gic-heading);
+	--sidebar-select-color: var(--gic-indigo-tint);
+}
+
+body {
+	font-family: var(--font-stack);
+}
+
+/* Signature gradient bar across the top of every desk page. */
+.navbar {
+	border-top: 3px solid transparent;
+	border-image: var(--gic-gradient) 1;
+}
+
+/* Frappe sizes the logo for a square icon; the GICNEXT wordmark is wide. */
+.navbar .app-logo {
+	width: auto;
+	height: 26px;
+	max-width: 160px;
+	object-fit: contain;
+}
+
+/* Primary buttons: GIC accent green with white text. */
+[data-theme="light"] .btn-primary,
+[data-theme="light"] .btn-primary:focus {
+	background-color: var(--gic-accent) !important;
+	border-color: var(--gic-accent) !important;
+	color: #fff !important;
+}
+[data-theme="light"] .btn-primary:hover,
+[data-theme="light"] .btn-primary:active {
+	background-color: var(--gic-accent-dark) !important;
+	border-color: var(--gic-accent-dark) !important;
+	color: #fff !important;
+}
+
+/* Headings in indigo, as on GIC documents. */
+[data-theme="light"] .page-title .title-text,
+[data-theme="light"] .widget-group-title,
+[data-theme="light"] .ce-header {
+	color: var(--gic-indigo);
+	font-weight: 800;
+}
+
+/* Selected sidebar item. */
+[data-theme="light"] .standard-sidebar-item.selected {
+	color: var(--gic-indigo);
+	font-weight: 600;
+}
+
+/* Shortcut and number cards on the GIC Easy Desk. */
+[data-theme="light"] .widget.shortcut-widget-box:hover {
+	border-color: var(--gic-accent);
+}

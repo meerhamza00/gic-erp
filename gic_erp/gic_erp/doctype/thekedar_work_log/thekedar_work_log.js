@@ -13,7 +13,12 @@ frappe.ui.form.on("Thekedar Work Log", {
 	},
 
 	refresh(frm) {
-		if (frm.doc.docstatus === 1 && frm.doc.purchase_invoice) {
+		// Munshis can't read Purchase Invoices, so only show the button to users who can.
+		if (
+			frm.doc.docstatus === 1 &&
+			frm.doc.purchase_invoice &&
+			frappe.model.can_read("Purchase Invoice")
+		) {
 			frm.add_custom_button(__("Open Purchase Invoice"), () =>
 				frappe.set_route("Form", "Purchase Invoice", frm.doc.purchase_invoice)
 			);

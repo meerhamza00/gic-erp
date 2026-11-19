@@ -5,4 +5,5 @@
 [post_model_sync]
 gic_erp.patches.v0_2.setup_local_defaults
 gic_erp.patches.v0_3.setup_manufacturing_and_permissions
+gic_erp.patches.v0_4.setup_branding
 # Patches added in this section will be executed after doctypes are migrated

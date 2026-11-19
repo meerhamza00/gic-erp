@@ -49,6 +49,21 @@ NON_MANUFACTURING_BLOCKED_MODULES = ("Manufacturing", "Subcontracting")
 # current hide list gets un-hidden, so switching business type is reversible.
 MANAGED_WORKSPACES = ALWAYS_HIDDEN_WORKSPACES + NON_MANUFACTURING_HIDDEN_WORKSPACES
 
+# Setup and admin areas. Restricted to System Manager so munshis and owners don't see them
+# in the sidebar; admins keep them. Frappe shows a workspace that has roles only to users
+# holding one of those roles.
+ADMIN_ONLY_WORKSPACES = (
+	"Users",
+	"Website",
+	"Tools",
+	"ERPNext Settings",
+	"ERPNext Integrations",
+	"Integrations",
+	"Build",
+	"Welcome Workspace",
+)
+ADMIN_ROLE = "System Manager"
+
 
 def get_hide_plan(business_type: str) -> tuple[list[str], list[str]]:
 	workspaces = list(ALWAYS_HIDDEN_WORKSPACES)
@@ -64,14 +79,42 @@ def apply_module_visibility(profile) -> dict:
 	workspaces, modules = get_hide_plan(profile.business_type)
 	hidden = _set_workspace_visibility(set(workspaces))
 	blocked = _sync_module_profile(modules)
+	restrict_admin_workspaces()
 	frappe.clear_cache()
 	return {"hidden_workspaces": hidden, "blocked_modules": blocked}
 
 
+def restrict_admin_workspaces() -> list[str]:
+	"""Give each admin workspace the System Manager role. Idempotent.
+
+	Rows are written directly: saving a standard workspace in developer mode would
+	export it back into ERPNext's own JSON files. Workspace sync on migrate can drop
+	the rows, so after_migrate re-applies this.
+	"""
+	restricted = []
+	for name in frappe.get_all("Workspace", filters={"name": ("in", ADMIN_ONLY_WORKSPACES)}, pluck="name"):
+		if not frappe.db.exists("Has Role", {"parenttype": "Workspace", "parent": name, "role": ADMIN_ROLE}):
+			frappe.get_doc(
+				{
+					"doctype": "Has Role",
+					"parenttype": "Workspace",
+					"parentfield": "roles",
+					"parent": name,
+					"role": ADMIN_ROLE,
+				}
+			).db_insert()
+		restricted.append(name)
+	return restricted
+
+
 def after_migrate():
-	"""Re-apply after migrate, because standard workspace sync can reset is_hidden."""
+	"""Re-apply after migrate, because standard workspace sync can reset is_hidden and roles."""
 	if not frappe.db.table_exists("GIC Industry Profile", cached=False):
 		return
+	restrict_admin_workspaces()
+	from gic_erp.setup.branding import apply_branding
+
+	apply_branding()
 	business_type = frappe.db.get_single_value("GIC Industry Profile", "business_type")
 	if not business_type:
 		return

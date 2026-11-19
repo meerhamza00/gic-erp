@@ -4,7 +4,9 @@
 
 import frappe
 
+from gic_erp.setup.branding import apply_branding
 from gic_erp.setup.custom_fields import ensure_custom_fields
+from gic_erp.setup.module_visibility import restrict_admin_workspaces
 from gic_erp.setup.permissions import apply_gic_permissions
 from gic_erp.setup.ui_simplifier import simplify_forms
 
@@ -37,6 +39,7 @@ UOM_CONVERSIONS = (
 def after_install():
 	setup_local_defaults()
 	setup_manufacturing_and_permissions()
+	setup_branding()
 
 
 def setup_local_defaults():
@@ -52,6 +55,12 @@ def setup_manufacturing_and_permissions():
 	ensure_roles()  # permissions need the roles to exist
 	ensure_custom_fields()
 	apply_gic_permissions()
+
+
+def setup_branding():
+	"""GICNEXT name, logos, help menu, letterhead; admin areas hidden from GIC roles. Install and patch."""
+	apply_branding()
+	restrict_admin_workspaces()
 
 
 def ensure_roles():
