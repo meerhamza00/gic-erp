@@ -1,0 +1,136 @@
+{
+ "actions": [],
+ "creation": "2026-11-19 17:00:00.000000",
+ "description": "Central switchboard: business type and feature flags that configure GIC-ERP for this company.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "profile_section",
+  "business_type",
+  "company",
+  "column_break_profile",
+  "profile_help",
+  "features_section",
+  "enable_fbr_invoicing",
+  "enable_whatsapp_alerts",
+  "enable_kacha_pakka_mode",
+  "column_break_features",
+  "enable_thekedar_payroll",
+  "enable_scrap_tracking",
+  "status_section",
+  "last_applied_on",
+  "hidden_workspaces"
+ ],
+ "fields": [
+  {
+   "fieldname": "profile_section",
+   "fieldtype": "Section Break",
+   "label": "Business Profile"
+  },
+  {
+   "fieldname": "business_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Business Type",
+   "options": "\nLight Engineering & Foundry\nWholesale & Mandi Trader\nImporter & Exporter\nSanitary Ware & Ceramics",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_profile",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "profile_help",
+   "fieldtype": "HTML",
+   "label": "Help",
+   "options": "<p class=\"text-muted\">Choosing a business type switches on the features that type needs and hides ERPNext screens it does not use. You can still turn extra features on below.</p>"
+  },
+  {
+   "fieldname": "features_section",
+   "fieldtype": "Section Break",
+   "label": "Features"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_fbr_invoicing",
+   "fieldtype": "Check",
+   "label": "FBR Digital Invoicing"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_whatsapp_alerts",
+   "fieldtype": "Check",
+   "label": "WhatsApp Alerts"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_kacha_pakka_mode",
+   "fieldtype": "Check",
+   "label": "Kacha / Pakka Billing"
+  },
+  {
+   "fieldname": "column_break_features",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_thekedar_payroll",
+   "fieldtype": "Check",
+   "label": "Thekedar (Piece-Rate) Payroll"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_scrap_tracking",
+   "fieldtype": "Check",
+   "label": "Scrap & Burning Loss Tracking"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Applied Configuration"
+  },
+  {
+   "fieldname": "last_applied_on",
+   "fieldtype": "Datetime",
+   "label": "Last Applied On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "hidden_workspaces",
+   "fieldtype": "Small Text",
+   "label": "Hidden Workspaces",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-19 17:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "GIC ERP",
+ "name": "GIC Industry Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
