@@ -7,4 +7,5 @@ gic_erp.patches.v0_2.setup_local_defaults
 gic_erp.patches.v0_3.setup_manufacturing_and_permissions
 gic_erp.patches.v0_4.setup_branding
 gic_erp.patches.v0_5.setup_billing
+gic_erp.patches.v0_6.setup_fbr
 # Patches added in this section will be executed after doctypes are migrated

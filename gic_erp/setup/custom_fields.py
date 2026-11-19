@@ -15,6 +15,13 @@ def _f(**df) -> dict:
 PAKKA = "Pakka (Tax Invoice)"
 KACHA = "Kacha (Estimate Slip)"
 
+FBR_NOT_APPLICABLE = "Not Applicable"
+FBR_PENDING = "Pending"
+FBR_SYNCED = "Synced"
+FBR_FAILED = "Failed"
+FBR_STATUSES = (FBR_NOT_APPLICABLE, FBR_PENDING, FBR_SYNCED, FBR_FAILED)
+FBR_SHOWN = f"eval:doc.gic_fbr_sync_status && doc.gic_fbr_sync_status!='{FBR_NOT_APPLICABLE}'"
+
 CUSTOM_FIELDS: dict[str, list[dict]] = {
 	"Sales Invoice": [
 		_f(
@@ -29,6 +36,61 @@ CUSTOM_FIELDS: dict[str, list[dict]] = {
 			print_hide=1,
 			no_copy=0,
 			description="Kacha: estimate / delivery memo without sales tax. It still posts to the books.",
+		),
+		# FBR Digital Invoicing (Milestone 5). Filled by gic_erp.services.fbr_sync after submit.
+		_f(
+			fieldname="gic_fbr_section",
+			label="FBR Digital Invoice",
+			fieldtype="Section Break",
+			insert_after="other_charges_calculation",
+			collapsible=1,
+			depends_on=FBR_SHOWN,
+		),
+		_f(
+			fieldname="gic_fbr_sync_status",
+			label="FBR Sync Status",
+			fieldtype="Select",
+			options="\n".join(FBR_STATUSES),
+			default=FBR_NOT_APPLICABLE,
+			insert_after="gic_fbr_section",
+			read_only=1,
+			allow_on_submit=1,
+			no_copy=1,
+			in_standard_filter=1,
+			print_hide=1,
+		),
+		_f(
+			fieldname="gic_fbr_invoice_no",
+			label="FBR Invoice No",
+			fieldtype="Data",
+			insert_after="gic_fbr_sync_status",
+			read_only=1,
+			allow_on_submit=1,
+			no_copy=1,
+		),
+		_f(
+			fieldname="gic_fbr_col",
+			fieldtype="Column Break",
+			insert_after="gic_fbr_invoice_no",
+		),
+		_f(
+			fieldname="gic_fbr_qr_image",
+			label="FBR QR Code",
+			fieldtype="Attach Image",
+			insert_after="gic_fbr_col",
+			read_only=1,
+			allow_on_submit=1,
+			no_copy=1,
+			hidden=1,
+		),
+		_f(
+			# Shows the QR picture on the form and in prints (the Attach field shows only its path).
+			fieldname="gic_fbr_qr_preview",
+			label="FBR QR Code",
+			fieldtype="Image",
+			options="gic_fbr_qr_image",
+			insert_after="gic_fbr_qr_image",
+			depends_on="eval:doc.gic_fbr_qr_image",
 		),
 	],
 	"Stock Entry": [

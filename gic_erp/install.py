@@ -42,6 +42,7 @@ def after_install():
 	setup_manufacturing_and_permissions()
 	setup_branding()
 	setup_billing()
+	setup_fbr()
 
 
 def setup_local_defaults():
@@ -63,6 +64,11 @@ def setup_billing():
 	"""Kacha / Pakka bill type field and its tax-field rules. Install and patch."""
 	ensure_custom_fields()
 	ensure_bill_mode_setup()
+
+
+def setup_fbr():
+	"""FBR sync status, invoice no and QR fields on Sales Invoice. Install and patch."""
+	ensure_custom_fields()
 
 
 def setup_branding():

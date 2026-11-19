@@ -1,0 +1,111 @@
+{
+ "actions": [],
+ "creation": "2026-11-19 21:00:00.000000",
+ "description": "FBR Digital Invoicing (PRAL) connection for Pakka sales invoices.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "connection_section",
+  "enabled",
+  "sandbox_mode",
+  "fbr_api_url",
+  "pral_bearer_token",
+  "seller_section",
+  "ntn_number",
+  "strn_number",
+  "column_break_seller",
+  "seller_province",
+  "pos_id"
+ ],
+ "fields": [
+  {
+   "fieldname": "connection_section",
+   "fieldtype": "Section Break",
+   "label": "Connection"
+  },
+  {
+   "default": "0",
+   "description": "Send submitted Pakka (Tax Invoice) bills to FBR. GIC Industry Profile > FBR Invoicing must also be on. Kacha bills are never sent.",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "default": "1",
+   "description": "On: nothing leaves GICNEXT. FBR's reply is simulated with a test invoice number and QR code. Turn off only after testing with your PRAL credentials.",
+   "fieldname": "sandbox_mode",
+   "fieldtype": "Check",
+   "label": "Sandbox Mode"
+  },
+  {
+   "default": "https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata",
+   "description": "PRAL Digital Invoicing 'post invoice data' URL from your PRAL onboarding documents. Used only when Sandbox Mode is off.",
+   "fieldname": "fbr_api_url",
+   "fieldtype": "Data",
+   "label": "FBR API URL",
+   "options": "URL",
+   "mandatory_depends_on": "eval:doc.enabled && !doc.sandbox_mode"
+  },
+  {
+   "description": "Security token issued by PRAL. Sent as 'Authorization: Bearer <token>'. Stored encrypted.",
+   "fieldname": "pral_bearer_token",
+   "fieldtype": "Password",
+   "label": "PRAL Bearer Token",
+   "length": 1024
+  },
+  {
+   "fieldname": "seller_section",
+   "fieldtype": "Section Break",
+   "label": "Seller (your business)"
+  },
+  {
+   "description": "7-digit NTN (e.g. 1234567) or 13-digit CNIC for individuals.",
+   "fieldname": "ntn_number",
+   "fieldtype": "Data",
+   "label": "NTN / CNIC",
+   "mandatory_depends_on": "eval:doc.enabled"
+  },
+  {
+   "fieldname": "strn_number",
+   "fieldtype": "Data",
+   "label": "STRN (Sales Tax Registration No)"
+  },
+  {
+   "fieldname": "column_break_seller",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "PUNJAB",
+   "fieldname": "seller_province",
+   "fieldtype": "Select",
+   "label": "Province",
+   "options": "PUNJAB\nSINDH\nKHYBER PAKHTUNKHWA\nBALOCHISTAN\nCAPITAL TERRITORY\nGILGIT BALTISTAN\nAZAD JAMMU AND KASHMIR"
+  },
+  {
+   "description": "FBR POS ID, for retailers on the FBR POS system. Not sent with Digital Invoicing.",
+   "fieldname": "pos_id",
+   "fieldtype": "Data",
+   "label": "POS ID"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-19 21:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "GIC ERP",
+ "name": "GIC FBR Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

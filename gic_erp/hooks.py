@@ -287,7 +287,11 @@ doc_events = {
 	"Sales Invoice": {
 		"before_validate": "gic_erp.billing.kacha_pakka.before_validate",
 		"validate": "gic_erp.billing.kacha_pakka.validate",
-		"on_submit": "gic_erp.services.whatsapp.on_sales_invoice_submit",
+		# FBR Digital Invoicing (Milestone 5), then the WhatsApp bill message.
+		"on_submit": [
+			"gic_erp.services.fbr_sync.on_sales_invoice_submit",
+			"gic_erp.services.whatsapp.on_sales_invoice_submit",
+		],
 	},
 	"Payment Entry": {
 		"on_submit": "gic_erp.services.whatsapp.on_payment_entry_submit",

@@ -1,6 +1,14 @@
 // Copyright (c) 2026, Gujranwala Incubation Center and contributors
 // For license information, please see license.txt
 
+// Business Type -> blueprint offered first (same map as gic_erp/seed/blueprints.py).
+const GIC_BLUEPRINTS = {
+	"Light Engineering & Foundry": "Foundry & Cookware",
+	"Wholesale & Mandi Trader": "Mandi & Wholesale Trader",
+	"Importer & Exporter": "Importer & Exporter",
+	"Sanitary Ware & Ceramics": "Sanitary Ware & Ceramics",
+};
+
 frappe.ui.form.on("GIC Industry Profile", {
 	refresh(frm) {
 		if (!frm.doc.business_type) {
@@ -29,6 +37,8 @@ frappe.ui.form.on("GIC Industry Profile", {
 				},
 			});
 		});
+
+		frm.add_custom_button(__("Load Industry Blueprint Data"), () => gic_blueprint_dialog(frm));
 
 		frm.add_custom_button(__("Simplify Forms"), () => {
 			frappe.call({
@@ -62,3 +72,62 @@ frappe.ui.form.on("GIC Industry Profile", {
 		});
 	},
 });
+
+function gic_blueprint_dialog(frm) {
+	const dialog = new frappe.ui.Dialog({
+		title: __("Load Industry Blueprint Data"),
+		fields: [
+			{
+				fieldname: "blueprint_name",
+				label: __("Blueprint"),
+				fieldtype: "Select",
+				options: Object.values(GIC_BLUEPRINTS),
+				default: GIC_BLUEPRINTS[frm.doc.business_type],
+				reqd: 1,
+			},
+			{
+				fieldname: "company",
+				label: __("Company"),
+				fieldtype: "Link",
+				options: "Company",
+				default: frm.doc.company,
+				reqd: 1,
+			},
+			{
+				fieldname: "help",
+				fieldtype: "HTML",
+				options: `<p class="text-muted">${__(
+					"Adds Pakistani tax templates and starter items, accounts and settings for this industry. Anything that already exists is left as it is, so it is safe to run again."
+				)}</p>`,
+			},
+		],
+		primary_action_label: __("Load"),
+		primary_action(values) {
+			dialog.hide();
+			frappe
+				.call({
+					method: "gic_erp.seed.blueprints.apply_industry_blueprint",
+					args: values,
+					freeze: true,
+					freeze_message: __("Loading {0}...", [values.blueprint_name]),
+				})
+				.then((r) => {
+					if (!r.message) return;
+					const { created, already_there } = r.message;
+					const list = (rows) =>
+						rows.length
+							? "<ul>" + rows.map((x) => `<li>${frappe.utils.escape_html(x)}</li>`).join("") + "</ul>"
+							: `<p class="text-muted">${__("None")}</p>`;
+					frappe.msgprint({
+						title: __("{0} loaded", [values.blueprint_name]),
+						message: `<b>${__("Created")} (${created.length})</b>${list(created)}<b>${__(
+							"Already there"
+						)} (${already_there.length})</b>${list(already_there)}`,
+						indicator: "green",
+						wide: true,
+					});
+				});
+		},
+	});
+	dialog.show();
+}

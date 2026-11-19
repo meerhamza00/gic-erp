@@ -21,6 +21,7 @@ frappe.ui.form.on("Sales Invoice", {
 		if (frm.gic_kacha_enabled !== undefined) {
 			frm.toggle_display("gic_bill_mode", frm.gic_kacha_enabled);
 		}
+		gic_fbr_retry_button(frm);
 		if (!frm.is_new() && frm.doc.gic_bill_mode === GIC_KACHA) {
 			frm.add_custom_button(__("Print Kacha Slip"), () => gic_print_kacha_slip(frm));
 			// show_message appends on every refresh, so add the notice only once.
@@ -63,4 +64,27 @@ function gic_print_kacha_slip(frm) {
 		trigger_print: 1,
 	});
 	window.open(`/printview?${params.toString()}`, "_blank");
+}
+
+function gic_fbr_retry_button(frm) {
+	const status = frm.doc.gic_fbr_sync_status;
+	if (frm.doc.docstatus !== 1 || !["Pending", "Failed"].includes(status)) {
+		return;
+	}
+	frm.add_custom_button(__("Retry FBR Sync"), () => {
+		frappe
+			.call({
+				method: "gic_erp.services.fbr_sync.retry_fbr_sync",
+				args: { docname: frm.doc.name },
+				freeze: true,
+				freeze_message: __("Sending to FBR queue..."),
+			})
+			.then(() => {
+				frappe.show_alert({
+					message: __("Queued for FBR. Reload in a few seconds to see the result."),
+					indicator: "blue",
+				});
+				frm.reload_doc();
+			});
+	});
 }
