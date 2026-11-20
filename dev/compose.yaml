@@ -33,10 +33,10 @@ services:
       retries: 30
 
   redis-cache:
-    image: redis:7-alpine
+    image: redis:8-alpine
 
   redis-queue:
-    image: redis:7-alpine
+    image: redis:8-alpine
 
   frappe:
     image: frappe/bench:latest
