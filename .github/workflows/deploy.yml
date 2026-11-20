@@ -1,0 +1,105 @@
+# Deploy a released image to STAGING over SSH (no registry). Runs after every release when
+# the staging secrets exist, or by hand with "Run workflow".
+#
+# Production is not deployed from GitHub: its key stays on Meer's laptop and production is
+# deployed with deploy/local-deploy.sh. Never add production secrets to this repository.
+#
+# Secrets:
+#   STAGING_DEPLOY_HOST   server hostname or IP
+#   STAGING_DEPLOY_USER   deploy user (default: gicnext, created by deploy/server/bootstrap.sh)
+#   STAGING_SSH_KEY       private key of that user (ed25519, no passphrase)
+#   STAGING_KNOWN_HOSTS   host key line, checked against the provider console (docs/DEVOPS.md)
+#
+# The key only works through /opt/gicnext/bin/ssh-gate on the server: "upload <file>" into
+# incoming/ and "deploy vX.Y.Z". It has no shell and cannot replace compose.yaml or
+# remote-deploy.sh (those change only when bootstrap.sh is re-run as root).
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+    secrets:
+      STAGING_DEPLOY_HOST:
+        required: false
+      STAGING_DEPLOY_USER:
+        required: false
+      STAGING_SSH_KEY:
+        required: false
+      STAGING_KNOWN_HOSTS:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to deploy, e.g. v0.6.0
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false # never cut a deploy off half way
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TAG: ${{ inputs.tag }}
+      DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
+      SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+      KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}
+    steps:
+      - name: Check inputs and secrets
+        id: check
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Bad tag: $TAG"; exit 1; }
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "::notice::No staging server configured (secrets missing). Skipping deploy."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.check.outputs.skip != 'true'
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+          sparse-checkout: |
+            deploy/compose.yaml
+            deploy/server/remote-deploy.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download the release image
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern "gic-erp-${TAG#v}-amd64.tar.zst" --pattern "gic-erp-${TAG#v}-amd64.tar.zst.sha256"
+          (cd dist && sha256sum --strict -c ./*.sha256)
+
+      - name: Copy and deploy
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          user="${DEPLOY_USER:-gicnext}"
+          ssh_opts=(-i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30)
+          # shellcheck disable=SC2029,SC2094 # names expanded here on purpose (validated, ssh-gate re-checks); "$f" is only read
+          for f in dist/*.tar.zst dist/*.tar.zst.sha256 deploy/compose.yaml deploy/server/remote-deploy.sh; do
+            ssh "${ssh_opts[@]}" "$user@$DEPLOY_HOST" "upload $(basename "$f")" < "$f"
+          done
+          # shellcheck disable=SC2029 # $TAG validated above
+          ssh "${ssh_opts[@]}" "$user@$DEPLOY_HOST" "deploy $TAG"
+          echo "### Deployed $TAG to staging" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

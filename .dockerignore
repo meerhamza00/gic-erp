@@ -1,0 +1,13 @@
+# Build context for deploy/Containerfile = the repo root. Keep the image to the app itself.
+.git
+.github
+.ruff_cache
+**/__pycache__
+**/*.pyc
+**/node_modules
+gic_erp/public/dist
+dev
+docs
+deploy/server
+*.tar.zst
+.DS_Store

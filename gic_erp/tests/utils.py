@@ -82,3 +82,36 @@ def make_user(email: str, *roles: str) -> str:
 	user.add_roles(*roles)
 	frappe.clear_cache(user=email)
 	return email
+
+
+def before_tests():
+	"""hooks.before_tests: on a blank site (CI), finish ERPNext's setup wizard first.
+
+	Creates a Pakistani test company so the suite runs the same on a fresh CI site as on
+	gic-test.local. Does nothing when a Company already exists.
+	"""
+	if frappe.db.a_row_exists("Company"):
+		return
+	from frappe.desk.page.setup_wizard.setup_wizard import setup_complete
+
+	year = frappe.utils.now_datetime().year
+	setup_complete(
+		{
+			"currency": "PKR",
+			"country": "Pakistan",
+			"timezone": "Asia/Karachi",
+			"language": "english",
+			"full_name": "GIC CI",
+			"email": "ci@gicnext.test",
+			# Throwaway user on a throwaway site: random, never printed.
+			"password": frappe.generate_hash(length=24),
+			"company_name": "_GIC Test Foundry",
+			"company_abbr": "_GTF",
+			"company_tagline": "CI",
+			"industry": "Manufacturing",
+			"chart_of_accounts": "Standard",
+			"fy_start_date": f"{year}-01-01",
+			"fy_end_date": f"{year}-12-31",
+		}
+	)
+	frappe.db.commit()

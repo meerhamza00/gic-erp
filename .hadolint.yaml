@@ -1,0 +1,5 @@
+# Fail on warnings and errors; infos are shown but do not fail.
+# DL3066 (named user): the frappe images define the "frappe" user (uid 1000) themselves.
+failure-threshold: warning
+ignored:
+  - DL3066

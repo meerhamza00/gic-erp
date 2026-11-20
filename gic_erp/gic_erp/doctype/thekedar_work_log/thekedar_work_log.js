@@ -30,8 +30,5 @@ frappe.ui.form.on("Thekedar Work Log", {
 });
 
 function calculate_total(frm) {
-	frm.set_value(
-		"total_payable",
-		flt(frm.doc.quantity_completed) * flt(frm.doc.rate_per_unit)
-	);
+	frm.set_value("total_payable", flt(frm.doc.quantity_completed) * flt(frm.doc.rate_per_unit));
 }
