@@ -1,8 +1,26 @@
-.DS_Store
+# Python
 *.pyc
-*.egg-info
+__pycache__/
+*.egg-info/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node / Frappe build output
+node_modules/
+gic_erp/public/dist/
+
+# Editors and OS
+.DS_Store
 *.swp
 tags
-node_modules
-__pycache__
-gic_erp/public/dist/
+.idea/
+.vscode/
+
+# Local secrets and runtime data: never commit these
+dev/.secrets
+*.pem
+*.key
+deploy/server/gicnext.conf
+*.tar.zst

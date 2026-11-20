@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Images in the production and dev compose files (Traefik, Redis, Ofelia...).
+  # Frappe / ERPNext are pinned in deploy/versions.conf and bumped by hand.
+  - package-ecosystem: docker-compose
+    directories: [/deploy, /dev]
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+    ignore:
+      # ERPNext v15 is supported on MariaDB 10.6: no major/minor jumps.
+      - dependency-name: mariadb
+        update-types: [version-update:semver-major, version-update:semver-minor]

@@ -1,0 +1,109 @@
+# Build the production image, rehearse real deploys with it, scan it, and (on release)
+# attach it to the GitHub Release. Called by release-please.yml; also runs on PRs that
+# touch deploy/ and by hand.
+name: Image
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag, e.g. v0.6.0
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to rebuild and re-attach (blank = build and test only)
+        type: string
+        required: false
+  pull_request:
+    paths:
+      - deploy/**
+      - .dockerignore
+      - .github/workflows/image.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write # upload release assets
+    env:
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+          persist-credentials: false
+
+      - name: Version and pins
+        run: |
+          set -a; . deploy/versions.conf; set +a
+          if [ -n "$TAG" ]; then
+            [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Bad tag: $TAG"; exit 1; }
+            version="${TAG#v}"
+          else
+            version="0.0.0-ci.${GITHUB_RUN_NUMBER}"
+          fi
+          {
+            echo "VERSION=$version"
+            for k in FRAPPE_REF ERPNEXT_REF FRAPPE_BUILD_IMAGE FRAPPE_BASE_IMAGE; do echo "$k=${!k}"; done
+          } >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/Containerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: gicnext/gic-erp:${{ env.VERSION }}
+          build-args: |
+            FRAPPE_BUILD_IMAGE=${{ env.FRAPPE_BUILD_IMAGE }}
+            FRAPPE_BASE_IMAGE=${{ env.FRAPPE_BASE_IMAGE }}
+            FRAPPE_REF=${{ env.FRAPPE_REF }}
+            ERPNEXT_REF=${{ env.ERPNEXT_REF }}
+            GICNEXT_VERSION=${{ env.VERSION }}
+            VCS_REF=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save image
+        run: |
+          mkdir -p dist
+          file="dist/gic-erp-${VERSION}-amd64.tar.zst"
+          docker save "gicnext/gic-erp:${VERSION}" | zstd -19 -T0 -q -o "$file"
+          (cd dist && sha256sum "$(basename "$file")" > "$(basename "$file").sha256")
+          ls -lh dist
+
+      - name: Rehearse deploys (first deploy, site, redeploy, rollback)
+        run: deploy/ci/rehearse-deploy.sh "$VERSION" "dist/gic-erp-${VERSION}-amd64.tar.zst"
+
+      - name: Vulnerability scan (Grype, report only)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/grype:v0.122.1 "gicnext/gic-erp:${VERSION}" \
+            --only-fixed -o table > "dist/grype-${VERSION}.txt" || true
+          grep -cE 'Critical|High' "dist/grype-${VERSION}.txt" || true
+          {
+            echo "### Grype (fixed vulnerabilities only)"
+            echo '```'
+            head -n 60 "dist/grype-${VERSION}.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attach to the release
+        if: env.TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"

@@ -16,9 +16,14 @@ frappe.ui.form.on("GIC WhatsApp Settings", {
 				})
 				.then((r) => {
 					if (r.message && r.message.sent) {
-						frappe.show_alert({ message: __("Test message sent"), indicator: "green" });
+						frappe.show_alert({
+							message: __("Test message sent"),
+							indicator: "green",
+						});
 					} else {
-						frappe.msgprint(__("Not sent: WhatsApp is disabled here or in GIC Industry Profile."));
+						frappe.msgprint(
+							__("Not sent: WhatsApp is disabled here or in GIC Industry Profile.")
+						);
 					}
 				});
 		});

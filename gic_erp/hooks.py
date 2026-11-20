@@ -300,6 +300,9 @@ doc_events = {
 
 doctype_js = {"Sales Invoice": "public/js/sales_invoice.js"}
 
+# Blank CI sites: finish ERPNext's setup wizard before the test suite runs.
+before_tests = "gic_erp.tests.utils.before_tests"
+
 # Exported with `bench --site <site> export-fixtures --app gic_erp`.
 # Only records owned by GIC: module "GIC ERP" or a "GIC " name prefix.
 # The "GIC Standard User" Module Profile is NOT a fixture: it is computed per site

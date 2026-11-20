@@ -25,7 +25,10 @@ frappe.ui.form.on("GIC Industry Profile", {
 				freeze_message: __("Applying..."),
 				callback(r) {
 					if (r.exc) return;
-					frappe.show_alert({ message: __("Screen visibility applied"), indicator: "green" });
+					frappe.show_alert({
+						message: __("Screen visibility applied"),
+						indicator: "green",
+					});
 					frm.reload_doc();
 				},
 				error() {
@@ -44,22 +47,31 @@ frappe.ui.form.on("GIC Industry Profile", {
 			frappe.call({
 				method: "gic_erp.setup.ui_simplifier.simplify_forms_from_ui",
 				freeze: true,
-				freeze_message: __("Simplifying Sales Invoice, Purchase Invoice and Payment Entry..."),
+				freeze_message: __(
+					"Simplifying Sales Invoice, Purchase Invoice and Payment Entry..."
+				),
 				callback(r) {
 					if (r.exc || !r.message) return;
 					const { hidden_count, skipped } = r.message;
-					let message = __("{0} sections hidden. Reload any open forms to see the change.", [
-						hidden_count,
-					]);
+					let message = __(
+						"{0} sections hidden. Reload any open forms to see the change.",
+						[hidden_count]
+					);
 					if (skipped.length) {
 						message +=
 							"<br><br>" +
 							__("Kept visible:") +
 							"<ul>" +
-							skipped.map((s) => `<li>${frappe.utils.escape_html(s)}</li>`).join("") +
+							skipped
+								.map((s) => `<li>${frappe.utils.escape_html(s)}</li>`)
+								.join("") +
 							"</ul>";
 					}
-					frappe.msgprint({ title: __("Forms Simplified"), message, indicator: "green" });
+					frappe.msgprint({
+						title: __("Forms Simplified"),
+						message,
+						indicator: "green",
+					});
 				},
 				error() {
 					frappe.msgprint({
@@ -116,13 +128,17 @@ function gic_blueprint_dialog(frm) {
 					const { created, already_there } = r.message;
 					const list = (rows) =>
 						rows.length
-							? "<ul>" + rows.map((x) => `<li>${frappe.utils.escape_html(x)}</li>`).join("") + "</ul>"
+							? "<ul>" +
+							  rows.map((x) => `<li>${frappe.utils.escape_html(x)}</li>`).join("") +
+							  "</ul>"
 							: `<p class="text-muted">${__("None")}</p>`;
 					frappe.msgprint({
 						title: __("{0} loaded", [values.blueprint_name]),
-						message: `<b>${__("Created")} (${created.length})</b>${list(created)}<b>${__(
-							"Already there"
-						)} (${already_there.length})</b>${list(already_there)}`,
+						message: `<b>${__("Created")} (${created.length})</b>${list(
+							created
+						)}<b>${__("Already there")} (${already_there.length})</b>${list(
+							already_there
+						)}`,
 						indicator: "green",
 						wide: true,
 					});

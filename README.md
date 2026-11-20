@@ -1,33 +1,35 @@
-### GIC ERP
+# GICNEXT (gic_erp)
 
-Plug-and-play modular ERP for Gujranwala SMEs, built on ERPNext v15
+Plug-and-play modular ERP for Gujranwala SMEs, built on ERPNext v15 by the Gujranwala
+Incubation Center.
 
-### Installation
+[![CI](https://github.com/meerhamza00/gic-erp/actions/workflows/ci.yml/badge.svg)](https://github.com/meerhamza00/gic-erp/actions/workflows/ci.yml)
 
-You can install this app using the [bench](https://github.com/frappe/bench) CLI:
+## What it adds to ERPNext
+
+- **Industry Profile switchboard** and one-click industry blueprints (Foundry, Mandi,
+  Importer, Sanitary) with Pakistani tax templates.
+- **Munshi-friendly desk:** local units (Mann, Bori, Petti), a simple form mode.
+- **Foundry:** burning loss on melts, thekedar work log.
+- **Kacha / Pakka** dual billing and WhatsApp alerts.
+- **FBR Digital Invoicing** (PRAL) with sandbox mode and QR codes.
+
+## Development
 
 ```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app $URL_OF_THIS_REPO --branch develop
-bench install-app gic_erp
+# from the workspace root (ERP - GIC/)
+./scripts/dev-up.sh      # http://localhost:8000
+./scripts/test.sh        # gic_erp tests
 ```
 
-### Contributing
+New laptop: `dev/scripts/bootstrap.sh`. Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
+## Releases and deployment
 
-```bash
-cd apps/gic_erp
-pre-commit install
-```
+Docker images built and tested in GitHub Actions, attached to each GitHub Release and
+deployed over SSH to an Ubuntu server running the frappe_docker stack. See
+[docs/DEVOPS.md](docs/DEVOPS.md) and [ADR 0001](docs/adr/0001-devops-platform.md).
 
-Pre-commit is configured to use the following tools for checking and formatting your code:
+## License
 
-- ruff
-- eslint
-- prettier
-- pyupgrade
-
-### License
-
-mit
+MIT

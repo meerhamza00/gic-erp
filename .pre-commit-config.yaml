@@ -1,50 +1,53 @@
-exclude: 'node_modules|.git'
+# Local quality gates. Same hooks run in CI (lint job), so "green here" = "green there".
+# Setup once per clone:  pip install pre-commit && pre-commit install
+# Revs are pinned to commit SHAs (supply-chain safety); the comment shows the tag.
+exclude: 'node_modules|\.git/|gic_erp/public/dist/'
 default_stages: [pre-commit]
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
 fail_fast: false
-
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
       - id: trailing-whitespace
-        files: "gic_erp.*"
-        exclude: ".*json$|.*txt$|.*csv|.*md|.*svg"
+        exclude: '.*\.(json|txt|csv|md|svg)$'
+      - id: end-of-file-fixer
+        exclude: '.*\.(json|svg)$'
+      - id: mixed-line-ending
+        args: [--fix=lf]
       - id: check-merge-conflict
       - id: check-ast
       - id: check-json
       - id: check-toml
       - id: check-yaml
       - id: debug-statements
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.1
+    rev: 9026c9127e153371d7a78dfcb0c45ae2046a3d10  # frozen: v0.17.6
     hooks:
       - id: ruff
-        name: "Run ruff import sorter"
-        args: ["--select=I", "--fix"]
-
-      - id: ruff
-        name: "Run ruff linter"
-
+        args: [--fix]
       - id: ruff-format
-        name: "Run ruff formatter"
 
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v2.7.1
     hooks:
       - id: prettier
         types_or: [javascript, vue, scss]
-        # Ignore any files that might contain jinja / bundles
         exclude: |
-            (?x)^(
-                gic_erp/public/dist/.*|
-                .*node_modules.*|
-                .*boilerplate.*|
-                gic_erp/templates/includes/.*|
-                gic_erp/public/js/lib/.*
-            )$
-
+          (?x)^(
+              gic_erp/public/dist/.*|
+              .*node_modules.*|
+              .*boilerplate.*|
+              gic_erp/templates/includes/.*|
+              gic_erp/public/js/lib/.*
+          )$
 
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.44.0
@@ -52,18 +55,63 @@ repos:
       - id: eslint
         types_or: [javascript]
         args: ['--quiet']
-        # Ignore any files that might contain jinja / bundles
         exclude: |
-            (?x)^(
-                gic_erp/public/dist/.*|
-                cypress/.*|
-                .*node_modules.*|
-                .*boilerplate.*|
-                gic_erp/templates/includes/.*|
-                gic_erp/public/js/lib/.*
-            )$
+          (?x)^(
+              gic_erp/public/dist/.*|
+              cypress/.*|
+              .*node_modules.*|
+              .*boilerplate.*|
+              gic_erp/templates/includes/.*|
+              gic_erp/public/js/lib/.*
+          )$
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 92ae8b82fb422a639f0ed8d99e96cea769594e08  # frozen: 1.9.4
+    hooks:
+      - id: bandit
+        args: [-c, pyproject.toml, -q]
+        additional_dependencies: ['bandit[toml]']
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e  # frozen: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.15.1
+    hooks:
+      - id: hadolint
+        files: (Containerfile|Dockerfile)$
+
+  - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
+    rev: v1.7.12.25
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: 33b50eb042bee26eac0ee96ad84aa9c1b4dccdd8  # frozen: v4.5.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, chore, docs, refactor, test, ci, build, perf, style, revert]
+
+  - repo: local
+    hooks:
+      # GitHub Free cannot protect branches on a private repo; this does it locally.
+      # Bypass only on purpose: SKIP=no-push-to-main git push ...
+      - id: no-push-to-main
+        name: block direct push to main (open a PR)
+        entry: bash -c '[ "${PRE_COMMIT_REMOTE_BRANCH:-}" != "refs/heads/main" ] || { echo "Direct push to main is blocked. Push a branch and open a PR."; exit 1; }'
+        language: system
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
 
 ci:
-    autoupdate_schedule: weekly
-    skip: []
-    submodules: false
+  autoupdate_schedule: monthly
+  skip: [no-push-to-main]

@@ -1,0 +1,120 @@
+# Deploy a released image to a server over SSH (no registry). Staging runs after every
+# release when its secrets exist; production is a manual "Run workflow".
+#
+# Secrets per target (prefix STAGING_ or PROD_):
+#   *_DEPLOY_HOST   server hostname or IP
+#   *_DEPLOY_USER   deploy user (default: gicnext, created by deploy/server/bootstrap.sh)
+#   *_SSH_KEY       private key of that user (ed25519, no passphrase)
+#   *_KNOWN_HOSTS   output of: ssh-keyscan -t ed25519 <host>   (pins the host key)
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+      target:
+        type: string
+        default: staging
+    secrets:
+      STAGING_DEPLOY_HOST:
+        required: false
+      STAGING_DEPLOY_USER:
+        required: false
+      STAGING_SSH_KEY:
+        required: false
+      STAGING_KNOWN_HOSTS:
+        required: false
+      PROD_DEPLOY_HOST:
+        required: false
+      PROD_DEPLOY_USER:
+        required: false
+      PROD_SSH_KEY:
+        required: false
+      PROD_KNOWN_HOSTS:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to deploy, e.g. v0.6.0
+        type: string
+        required: true
+      target:
+        description: Where to deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+      confirm:
+        description: Type the tag again to deploy to production
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.target }}
+  cancel-in-progress: false # never cut a deploy off half way
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TAG: ${{ inputs.tag }}
+      TARGET: ${{ inputs.target }}
+      CONFIRM: ${{ inputs.confirm }}
+      DEPLOY_HOST: ${{ inputs.target == 'production' && secrets.PROD_DEPLOY_HOST || secrets.STAGING_DEPLOY_HOST }}
+      DEPLOY_USER: ${{ inputs.target == 'production' && secrets.PROD_DEPLOY_USER || secrets.STAGING_DEPLOY_USER }}
+      SSH_KEY: ${{ inputs.target == 'production' && secrets.PROD_SSH_KEY || secrets.STAGING_SSH_KEY }}
+      KNOWN_HOSTS: ${{ inputs.target == 'production' && secrets.PROD_KNOWN_HOSTS || secrets.STAGING_KNOWN_HOSTS }}
+    steps:
+      - name: Check inputs and secrets
+        id: check
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Bad tag: $TAG"; exit 1; }
+          if [ "$TARGET" = production ] && [ "$CONFIRM" != "$TAG" ]; then
+            echo "::error::Production needs the tag typed again in 'confirm'."; exit 1
+          fi
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "::notice::No $TARGET server configured (secrets missing). Skipping deploy."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.check.outputs.skip != 'true'
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+          sparse-checkout: |
+            deploy/compose.yaml
+            deploy/server/remote-deploy.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download the release image
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern "gic-erp-${TAG#v}-amd64.tar.zst" --pattern "gic-erp-${TAG#v}-amd64.tar.zst.sha256"
+          (cd dist && sha256sum -c ./*.sha256)
+
+      - name: Copy and deploy
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          user="${DEPLOY_USER:-gicnext}"
+          ssh_opts=(-i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30)
+          scp "${ssh_opts[@]}" dist/* deploy/compose.yaml deploy/server/remote-deploy.sh \
+            "$user@$DEPLOY_HOST:/opt/gicnext/incoming/"
+          ssh "${ssh_opts[@]}" "$user@$DEPLOY_HOST" "bash /opt/gicnext/incoming/remote-deploy.sh '$TAG'"
+          echo "### Deployed $TAG to $TARGET" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

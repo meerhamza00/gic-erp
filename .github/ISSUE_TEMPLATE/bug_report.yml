@@ -1,0 +1,33 @@
+name: Bug report
+description: Something in GICNEXT does not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open Sales Invoice ...\n2. ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: GICNEXT version
+      description: Help > About, or the release tag (e.g. v0.5.0)
+  - type: input
+    id: site
+    attributes:
+      label: Site
+      description: Which client site. Do not paste passwords or customer data.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Log / traceback
+      render: text

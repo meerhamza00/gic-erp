@@ -1,0 +1,52 @@
+# On every push to main, release-please keeps a "chore(main): release x.y.z" PR up to date
+# (version bump + CHANGELOG from Conventional Commits). Merging that PR tags the release;
+# then the image is built and attached, and staging is deployed if configured.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      released: ${{ steps.rp.outputs.release_created }}
+      tag: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - id: rp
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  image:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/image.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag }}
+
+  deploy-staging:
+    needs: [release-please, image]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag }}
+      target: staging
+    secrets: inherit
