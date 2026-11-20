@@ -51,8 +51,10 @@ read -r -p "Deploy $tag to PRODUCTION ($user@$host)? Type the tag again: " confi
 [ "$confirm" = "$tag" ] || { echo "Not confirmed. Nothing deployed."; exit 1; }
 
 ssh_opts=(-i "$key" -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o IdentitiesOnly=yes)
+# shellcheck disable=SC2029,SC2094 # names expanded here on purpose (validated, ssh-gate re-checks); "$f" is only read
 for f in "$file" "$file.sha256" compose.yaml remote-deploy.sh; do
 	ssh "${ssh_opts[@]}" "$user@$host" "upload $f" <"$work/$f"
 done
+# shellcheck disable=SC2029 # $tag validated above
 ssh "${ssh_opts[@]}" "$user@$host" "deploy $tag"
 echo "Deployed $tag to production ($host)."

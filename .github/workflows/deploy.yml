@@ -92,9 +92,11 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           user="${DEPLOY_USER:-gicnext}"
           ssh_opts=(-i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30)
+          # shellcheck disable=SC2029,SC2094 # names expanded here on purpose (validated, ssh-gate re-checks); "$f" is only read
           for f in dist/*.tar.zst dist/*.tar.zst.sha256 deploy/compose.yaml deploy/server/remote-deploy.sh; do
             ssh "${ssh_opts[@]}" "$user@$DEPLOY_HOST" "upload $(basename "$f")" < "$f"
           done
+          # shellcheck disable=SC2029 # $TAG validated above
           ssh "${ssh_opts[@]}" "$user@$DEPLOY_HOST" "deploy $TAG"
           echo "### Deployed $TAG to staging" >> "$GITHUB_STEP_SUMMARY"
 
