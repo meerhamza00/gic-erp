@@ -158,3 +158,14 @@ Execute **one milestone at a time**. Complete all tasks in the milestone, run mi
      3. Enables scheduler (`bench --site <site_domain> enable-scheduler`)
    - `DEPLOYMENT_GUIDE.md`: Concise instructions for hosting multi-tenant sites on Ubuntu VPS with Nginx, Supervisor, Redis, MariaDB, and Let's Encrypt SSL.
 2. **Verification:** Validate bash script syntax (`bash -n deployment/onboard_client.sh`), export all fixtures (`bench --site gic-dev.local export-fixtures`), and stage the final Milestone 6 commit.
+
+**Delivered (2026-11-20), adapted to the Docker production model (ADR 0001):**
+- `deploy/server/onboard-client.sh <domain> "<company>" "<blueprint>"` instead of
+  `deployment/onboard_client.sh`. The Administrator password is generated, shown once and
+  saved root-only, never passed as an argument. It also completes the ERPNext setup wizard
+  (PKR, Asia/Karachi, fiscal year July to June), which the blueprint needs, saves the GIC
+  Industry Profile, and adds the domain to Traefik (Let's Encrypt). `--resume` finishes a
+  run that stopped half way.
+- Logic in `gic_erp/setup/onboarding.py`, tested in `test_onboarding.py`; the CI deploy
+  rehearsal onboards its test site with the real script on every image build.
+- `DEPLOYMENT_GUIDE.md` became `docs/DEVOPS.md` (Docker + Traefik replace Nginx and Supervisor).

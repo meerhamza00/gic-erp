@@ -38,7 +38,7 @@ apt-get install -y -q docker.io docker-compose-v2 zstd curl ufw fail2ban unatten
 systemctl enable --now docker fail2ban
 dpkg-reconfigure -f noninteractive unattended-upgrades
 
-for f in gicnext.conf.example compose.yaml remote-deploy.sh ssh-gate.sh; do
+for f in gicnext.conf.example compose.yaml remote-deploy.sh ssh-gate.sh onboard-client.sh; do
 	[ -f "$here/$f" ] || { echo "$f must sit next to this script (see the header)." >&2; exit 1; }
 done
 case "$pubkey" in
@@ -64,6 +64,7 @@ echo "==> $root (platform files root-owned)"
 install -d -m 755 -o root -g root "$root" "$root/bin"
 install -d -m 750 -o "$user" -g "$user" "$root/incoming"
 install -m 755 -o root -g root "$here/ssh-gate.sh" "$root/bin/ssh-gate"
+install -m 755 -o root -g root "$here/onboard-client.sh" "$root/bin/onboard-client.sh"
 install -m 755 -o root -g root "$here/remote-deploy.sh" "$root/bin/remote-deploy.sh"
 install -m 644 -o root -g root "$here/compose.yaml" "$root/compose.yaml"
 rm -f "$root/compose.yaml.prev"
