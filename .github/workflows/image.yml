@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to rebuild and re-attach (blank = build and test only)
+        description: Release tag whose image is missing (blank = build and test only). Never replaces an attached image.
         type: string
         required: false
   pull_request:
@@ -106,4 +106,14 @@ jobs:
         if: env.TAG != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+        # No --clobber: a released image and its checksum are never replaced. To ship a fix,
+        # cut a new release.
+        run: |
+          existing="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')"
+          for f in dist/*; do
+            if grep -qxF "$(basename "$f")" <<<"$existing"; then
+              echo "::error::$(basename "$f") is already attached to $TAG; released assets are never replaced."
+              exit 1
+            fi
+          done
+          gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY"

@@ -6,6 +6,10 @@
 #   2. create a client site (ERPNext + gic_erp) -> ping, GICNEXT login page, assets
 #   3. redeploy over a live site              -> backup + migrate + health check
 #   4. deploy a deliberately broken release   -> must fail and roll back automatically
+#   5. refusals: no .sha256, bad checksum, changed compose.yaml -> must not deploy
+#
+# Like on a server set up by bootstrap.sh, compose.yaml sits in $GICNEXT_ROOT (not taken
+# from incoming/) and remote-deploy.sh runs from its own path.
 #
 # Usage: deploy/ci/rehearse-deploy.sh <version> <image-tarball.tar.zst>
 set -euo pipefail
@@ -30,9 +34,22 @@ expect() {
 	grep -q -- "$2" <<<"$body" || { echo "GET $1: '$2' not found" >&2; return 1; }
 	echo "ok: GET $1 contains '$2'"
 }
+# Upload what deploy.yml uploads: the image, its .sha256 and the release's compose.yaml.
 stage() {
-	cp "$repo/deploy/compose.yaml" "$repo/deploy/server/remote-deploy.sh" "$root/incoming/"
-	cp "$1" "$root/incoming/gic-erp-$2-amd64.tar.zst"
+	local file="gic-erp-$2-amd64.tar.zst"
+	cp "$1" "$root/incoming/$file"
+	(cd "$root/incoming" && sha256sum "$file" >"$file.sha256")
+	cp "$repo/deploy/compose.yaml" "$root/incoming/"
+}
+deploy() { bash "$repo/deploy/server/remote-deploy.sh" "$@"; }
+must_refuse() {
+	local why="$1"
+	shift
+	if deploy "$@"; then
+		echo "Deploy should have been refused: $why" >&2
+		exit 1
+	fi
+	echo "ok: refused ($why)"
 }
 
 cleanup() {
@@ -46,6 +63,7 @@ on_exit() {
 trap on_exit EXIT
 
 rm -rf "$root" && mkdir -p "$root/incoming"
+cp "$repo/deploy/compose.yaml" "$root/compose.yaml"
 db_password="$(openssl rand -hex 24)"
 echo "::add-mask::$db_password"
 sed -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$db_password|" -e "s|^COMPOSE_PROFILES=.*|COMPOSE_PROFILES=|" \
@@ -53,7 +71,7 @@ sed -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$db_password|" -e "s|^COMPOSE_PROFILES=.*|
 
 step "1. first deploy on an empty server"
 stage "$tarball" "$version"
-bash "$root/incoming/remote-deploy.sh" "v$version"
+deploy "v$version"
 end
 
 step "2. create site $site and check it"
@@ -71,7 +89,7 @@ end
 
 step "3. redeploy over a live site (backup, migrate, health)"
 stage "$tarball" "$version"
-bash "$root/incoming/remote-deploy.sh" "v$version"
+deploy "v$version"
 compose exec -T backend bash -c "ls sites/$site/private/backups/*-database.sql.gz" >/dev/null && echo "ok: pre-deploy backup exists"
 end
 
@@ -80,11 +98,26 @@ broken=0.0.0-broken
 printf 'FROM gicnext/gic-erp:%s\nCMD ["false"]\n' "$version" | docker build -q -t "gicnext/gic-erp:$broken" - >/dev/null
 docker save "gicnext/gic-erp:$broken" | zstd -1 -q -T0 >"$tmp/broken.tar.zst"
 stage "$tmp/broken.tar.zst" "$broken"
-if bash "$root/incoming/remote-deploy.sh" "v$broken"; then
+if deploy "v$broken"; then
 	echo "Broken release was reported as deployed" >&2
 	exit 1
 fi
 grep -qx "GICNEXT_VERSION=$version" "$root/gicnext.conf"
 expect /api/method/ping pong
 echo "rolled back to $version and healthy"
+end
+
+step "5. deploys that must be refused (nothing changes)"
+file="gic-erp-$version-amd64.tar.zst"
+stage "$tarball" "$version"
+rm "$root/incoming/$file.sha256"
+must_refuse "missing .sha256" "v$version"
+stage "$tarball" "$version"
+echo "0000000000000000000000000000000000000000000000000000000000000000  $file" >"$root/incoming/$file.sha256"
+must_refuse "checksum mismatch" "v$version"
+stage "$tarball" "$version"
+echo "# changed by a release" >>"$root/incoming/compose.yaml"
+must_refuse "compose.yaml changed without bootstrap" "v$version"
+grep -qx "GICNEXT_VERSION=$version" "$root/gicnext.conf"
+expect /api/method/ping pong
 end

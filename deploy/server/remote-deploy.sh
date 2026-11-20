@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Deploy one GICNEXT release on this server. Called by .github/workflows/deploy.yml over
-# SSH, or by hand:  /opt/gicnext/incoming/remote-deploy.sh v0.6.0
+# Deploy one GICNEXT release on this server. Installed root-owned as
+# /opt/gicnext/bin/remote-deploy.sh by bootstrap.sh. Called by ssh-gate ("deploy vX.Y.Z")
+# from .github/workflows/deploy.yml, or by hand as root:
+#   /opt/gicnext/bin/remote-deploy.sh v0.6.0
+# It needs incoming/gic-erp-<version>-<arch>.tar.zst AND its .sha256 file.
 #
 # Steps: load image -> back up all sites -> switch image -> migrate -> health-check every
 # site. If migration or a health check fails, it switches back to the previous image
@@ -9,6 +12,7 @@
 set -euo pipefail
 
 tag="${1:?Usage: remote-deploy.sh <tag, e.g. v0.6.0>}"
+[[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "Bad tag: $tag" >&2; exit 1; }
 version="${tag#v}"
 root="${GICNEXT_ROOT:-/opt/gicnext}"
 incoming="$root/incoming"
@@ -22,22 +26,32 @@ conf_get() { sed -n "s/^$1=//p" "$conf" | tail -1; }
 conf_set() { sed -i.bak "s|^$1=.*|$1=$2|" "$conf" && rm -f "$conf.bak"; }
 
 [ -f "$conf" ] || die "$conf not found. Run deploy/server/bootstrap.sh first."
-tarball="$incoming/gic-erp-$version-amd64.tar.zst"
-[ -f "$tarball" ] || tarball="$(find "$incoming" -maxdepth 1 -name "gic-erp-$version-*.tar.zst" | head -1)"
-[ -f "$tarball" ] || die "image tarball for $version not found in $incoming"
+[ -f "$root/compose.yaml" ] || die "$root/compose.yaml not found. Run deploy/server/bootstrap.sh first."
 
-if [ -f "$tarball.sha256" ]; then
-	(cd "$(dirname "$tarball")" && sha256sum -c "$(basename "$tarball").sha256" >/dev/null) \
-		|| die "checksum mismatch for $tarball"
+# Platform files are root-owned and change only through bootstrap.sh. If the release ships
+# different ones, stop and ask for a bootstrap re-run instead of trusting uploaded copies.
+if [ -f "$incoming/compose.yaml" ] && ! cmp -s "$incoming/compose.yaml" "$root/compose.yaml"; then
+	die "this release changes deploy/compose.yaml: re-run deploy/server/bootstrap.sh as root with the $tag files first"
 fi
+self="$(readlink -f "$0")"
+if [ -f "$incoming/remote-deploy.sh" ] && [ "$(readlink -f "$incoming/remote-deploy.sh")" != "$self" ] \
+	&& ! cmp -s "$incoming/remote-deploy.sh" "$self"; then
+	die "this release changes remote-deploy.sh: re-run deploy/server/bootstrap.sh as root with the $tag files first"
+fi
+rm -f "$incoming/compose.yaml" "$incoming/remote-deploy.sh"
+
+tarball="$incoming/gic-erp-$version-amd64.tar.zst"
+[ -f "$tarball" ] || tarball="$incoming/gic-erp-$version-arm64.tar.zst"
+[ -f "$tarball" ] || die "image tarball for $version not found in $incoming"
+[ -f "$tarball.sha256" ] || die "checksum file $tarball.sha256 missing: refusing to deploy"
+(cd "$(dirname "$tarball")" && sha256sum --strict -c "$(basename "$tarball").sha256" >/dev/null) \
+	|| die "checksum mismatch for $tarball"
 
 log "loading image $version"
 zstd -dc "$tarball" | docker load >/dev/null
 docker image inspect "gicnext/gic-erp:$version" >/dev/null || die "tarball did not contain gicnext/gic-erp:$version"
 
 previous="$(conf_get GICNEXT_VERSION)"
-[ -f "$root/compose.yaml" ] && cp "$root/compose.yaml" "$root/compose.yaml.prev"
-install -m 644 "$incoming/compose.yaml" "$root/compose.yaml"
 
 running="$(compose ps -q backend 2>/dev/null || true)"
 if [ -n "$running" ]; then
@@ -105,7 +119,6 @@ rollback() {
 		compose down || true
 		die "first deploy failed; stack stopped"
 	fi
-	[ -f "$root/compose.yaml.prev" ] && cp "$root/compose.yaml.prev" "$root/compose.yaml"
 	conf_set GICNEXT_VERSION "$previous"
 	# shellcheck disable=SC2086 # word-splitting the service list is intended
 	compose up -d --remove-orphans --no-deps --force-recreate $SERVICES

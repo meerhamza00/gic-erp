@@ -8,7 +8,7 @@ laptop ──pre-commit──> branch ──PR (CI)──> main ──release PR
                                                                    │
                                      image.yml: build → rehearse deploy + rollback → scan → attach to Release
                                                                    │
-                                     deploy.yml: staging (automatic) · production (manual, tag typed twice)
+                                     deploy.yml: staging (automatic) · production: deploy/local-deploy.sh from the laptop
 ```
 
 ## 1. Daily work
@@ -54,10 +54,17 @@ PRs that touch `deploy/` also run `image.yml` (build, deploy rehearsal, scan) wi
    with Grype and attaches `gic-erp-X.Y.Z-amd64.tar.zst`, its `.sha256` and the scan report
    to the release.
 4. If staging secrets exist, `deploy.yml` deploys that release to staging.
-5. **Production:** Actions → Deploy → Run workflow → tag `vX.Y.Z`, target `production`,
-   and type the tag again in "confirm".
+5. **Production, from your laptop** (production is not in GitHub Actions, so its key never
+   sits in GitHub):
+   ```bash
+   deploy/local-deploy.sh vX.Y.Z PROD_SERVER
+   ```
+   It downloads the release image, checks its sha256, asks you to type the tag again, then
+   uploads and deploys through the server's ssh-gate. Key: `~/.ssh/gicnext_prod`
+   (or set `GICNEXT_SSH_KEY`).
 
-Rebuilding the image of an old release: Actions → Image → Run workflow with its tag.
+If a release's image failed to attach: Actions → Image → Run workflow with its tag. An image
+that is already attached is never replaced; ship a fix as a new release.
 
 ## 3. Setting up a server (once per server)
 
@@ -65,34 +72,60 @@ Any Ubuntu 22.04/24.04 VPS with 2 vCPU, 4 GB RAM and 40 GB disk is enough for se
 small sites. Point each client's DNS name (A record) at it first.
 
 ```bash
-# On the laptop: a key pair used only by GitHub Actions to deploy
-ssh-keygen -t ed25519 -N "" -C github-deploy -f ~/.ssh/gicnext_deploy
+# On the laptop: one key pair per server.
+#   staging:    used by GitHub Actions, no passphrase   -> ~/.ssh/gicnext_deploy
+#   production: stays on the laptop, WITH a passphrase  -> ~/.ssh/gicnext_prod
+ssh-keygen -t ed25519 -N "" -C github-deploy -f ~/.ssh/gicnext_deploy   # staging
+ssh-keygen -t ed25519 -C gicnext-prod -f ~/.ssh/gicnext_prod           # production
 
-scp deploy/server/bootstrap.sh deploy/server/gicnext.conf.example root@SERVER:/root/
-ssh root@SERVER "bash /root/bootstrap.sh '$(cat ~/.ssh/gicnext_deploy.pub)'"
+ssh root@SERVER mkdir -p /root/gicnext-platform
+scp deploy/server/* deploy/compose.yaml root@SERVER:/root/gicnext-platform/
+ssh root@SERVER "bash /root/gicnext-platform/bootstrap.sh '$(cat ~/.ssh/gicnext_deploy.pub)'"
+# (on the production server, pass ~/.ssh/gicnext_prod.pub instead)
 ```
 
-Then edit `/opt/gicnext/gicnext.conf` on the server (as root or gicnext) and set
-`LETSENCRYPT_EMAIL` and `SITES_RULE`. Leave `DB_PASSWORD` as generated.
+Then, as root, edit `/opt/gicnext/gicnext.conf` and set `LETSENCRYPT_EMAIL` and
+`SITES_RULE`. Leave `DB_PASSWORD` as generated. The file is root-only (`chmod 600`).
+
+**What the deploy key can do.** The key is locked to `/opt/gicnext/bin/ssh-gate`: it can
+upload release files into `incoming/` and start `/opt/gicnext/bin/remote-deploy.sh vX.Y.Z`,
+nothing else (no shell, no scp, no forwarding). The `gicnext` user is not in the docker
+group; one sudoers entry lets it run only that root-owned deploy script. `compose.yaml` and
+the deploy scripts are root-owned and change only when you run `bootstrap.sh` again.
+
+**When a release changes `deploy/compose.yaml` or `deploy/server/*.sh`**, the deploy stops
+with "re-run bootstrap.sh". Check out that tag, repeat the `scp` and `bootstrap.sh` lines
+above (same public key), then run the deploy again.
+
+**Pin the right host key.** Get the key with `ssh-keyscan -t ed25519 SERVER`, then compare
+its fingerprint (`ssh-keyscan -t ed25519 SERVER | ssh-keygen -lf -`) with the one in your
+VPS provider's console before saving it as a secret. A mismatch means someone is in the
+middle: stop.
 
 ### GitHub secrets
 
-Settings → Secrets and variables → Actions → New repository secret:
+Staging only. Settings → Secrets and variables → Actions → New repository secret:
 
 | Secret | Value |
 |---|---|
-| `STAGING_DEPLOY_HOST` / `PROD_DEPLOY_HOST` | server IP or hostname |
-| `STAGING_DEPLOY_USER` / `PROD_DEPLOY_USER` | `gicnext` (optional, that is the default) |
-| `STAGING_SSH_KEY` / `PROD_SSH_KEY` | contents of `~/.ssh/gicnext_deploy` (the private key) |
-| `STAGING_KNOWN_HOSTS` / `PROD_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 SERVER` |
+| `STAGING_DEPLOY_HOST` | staging server IP or hostname |
+| `STAGING_DEPLOY_USER` | `gicnext` (optional, that is the default) |
+| `STAGING_SSH_KEY` | contents of `~/.ssh/gicnext_deploy` (the private key) |
+| `STAGING_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 SERVER`, fingerprint checked as above |
 
-Without these secrets, deploys are skipped with a notice. Nothing fails.
+Without these secrets, staging deploys are skipped with a notice. Nothing fails.
+**Never add production secrets to GitHub.** Any repo collaborator's workflow could read
+them, and a private repo on GitHub Free has no approval gate to stop it.
 
-Then run the first deploy: Actions → Deploy → Run workflow with the latest tag.
+For production, add the server's host key to the laptop's `~/.ssh/known_hosts` (fingerprint
+checked as above). `local-deploy.sh` refuses a server that is not there.
+
+First deploy: staging via Actions → Deploy → Run workflow with the latest tag; production
+with `deploy/local-deploy.sh vX.Y.Z PROD_SERVER`.
 
 ## 4. First site and new client sites
 
-On the server, as the `gicnext` user:
+On the server, as root (`sudo -i`; the `gicnext` user has no docker access):
 
 ```bash
 cd /opt/gicnext
@@ -110,7 +143,9 @@ Add the site to `SITES_RULE` in `gicnext.conf`, for example
 
 ## 5. What a deploy does (`deploy/server/remote-deploy.sh`)
 
-1. Checks the sha256, then loads the image.
+1. Refuses if the release ships a different `compose.yaml` or `remote-deploy.sh` than the
+   root-owned ones (re-run `bootstrap.sh`), or if the `.sha256` file is missing or wrong.
+   Then loads the image.
 2. Backs up every site (`bench --site all backup`). If that fails, nothing is changed.
 3. Switches `GICNEXT_VERSION` and starts the new containers.
 4. Runs migrations (`bench --site all migrate`, up to 30 minutes).
@@ -121,8 +156,8 @@ Add the site to `SITES_RULE` in `gicnext.conf`, for example
 
 ## 6. Rollback and restore
 
-**Image rollback** (code only, any time): Actions → Deploy → Run workflow with the
-previous tag. Its image is still on the server (the last 3 are kept) or comes from its Release.
+**Image rollback** (code only, any time): deploy the previous tag again, with
+`deploy/local-deploy.sh vPREVIOUS PROD_SERVER` (staging: Actions → Deploy). Its image is still on the server (the last 3 are kept) or comes from its Release.
 
 **Database restore** (needed only if a migration ran and you go back to an older
 version, because migrations are forward-only):
@@ -162,8 +197,9 @@ docker build -f deploy/Containerfile -t gicnext/gic-erp:X.Y.Z \
   --build-arg FRAPPE_BUILD_IMAGE="$FRAPPE_BUILD_IMAGE" --build-arg FRAPPE_BASE_IMAGE="$FRAPPE_BASE_IMAGE" \
   --build-arg FRAPPE_REF="$FRAPPE_REF" --build-arg ERPNEXT_REF="$ERPNEXT_REF" --build-arg GICNEXT_VERSION=X.Y.Z .
 docker save gicnext/gic-erp:X.Y.Z | zstd -o /opt/gicnext/incoming/gic-erp-X.Y.Z-arm64.tar.zst
-cp deploy/compose.yaml deploy/server/remote-deploy.sh /opt/gicnext/incoming/
-bash /opt/gicnext/incoming/remote-deploy.sh vX.Y.Z
+(cd /opt/gicnext/incoming && sha256sum gic-erp-X.Y.Z-arm64.tar.zst > gic-erp-X.Y.Z-arm64.tar.zst.sha256)
+cp deploy/compose.yaml /opt/gicnext/incoming/
+/opt/gicnext/bin/remote-deploy.sh vX.Y.Z   # as root
 ```
 
 ## 9. Local development

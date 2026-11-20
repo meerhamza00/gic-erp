@@ -48,5 +48,9 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       tag: ${{ needs.release-please.outputs.tag }}
-      target: staging
-    secrets: inherit
+    # Only the deploy secrets, not every repository secret.
+    secrets:
+      STAGING_DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+      STAGING_DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
+      STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+      STAGING_KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}

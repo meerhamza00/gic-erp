@@ -18,7 +18,7 @@ feature branch ──PR──> main ──release-please PR──> tag vX.Y.Z + 
   (local)           Frappe tests                  vuln scan, attach image to the release
                                                           │
                                                   deploy.yml: staging (automatic if configured)
-                                                              production (manual run)
+                                                  production: deploy/local-deploy.sh (laptop)
 ```
 
 ## Context
@@ -90,9 +90,14 @@ cancelled when a newer commit arrives, and every job has a timeout.
   5. Health-check every site.
   6. **Roll back to the previous image automatically** if migration or a health check fails.
   7. Keep the last 3 images.
-- Staging deploys automatically after a release, if staging secrets exist. Production is a
-  manual "Run workflow" with the release tag typed twice (environment approvals are not
-  free on private repos).
+- Staging deploys automatically after a release, if staging secrets exist. Production is
+  deployed from Meer's laptop with `deploy/local-deploy.sh` (tag typed twice). Changed
+  2026-11-20 after a security review: on a private repo on GitHub Free there are no
+  environment secrets or approvals, so any production key in GitHub could be read by a
+  workflow from any branch. Keeping it on the laptop costs nothing.
+- Each server's deploy key is locked to `ssh-gate` (upload + deploy only); the deploy user
+  has no docker access, and `compose.yaml` and `remote-deploy.sh` are root-owned and change
+  only through `bootstrap.sh`.
 - Secrets live only in GitHub Actions secrets and in a `chmod 600` config file on the
   server. Nothing secret is in git.
 
@@ -106,7 +111,8 @@ versioned with the code. A new laptop gets a working bench with `dev/scripts/boo
 | GitHub feature | Private repo on Free | What we do instead |
 |---|---|---|
 | Branch protection / rulesets | Not available | Local pre-push hook blocks direct pushes to `main`; CI on every PR; squash-merge only. Turn on rulesets if the repo goes public or to GitHub Pro. |
-| Environments with approvals | Not available | Production deploy is a manual workflow run; staging is automatic. |
+| Environments with approvals | Not available | Production deploys run from the laptop (`deploy/local-deploy.sh`); its key is never in GitHub. Staging is automatic. |
+| Artifact attestations | Not available (Enterprise Cloud) | sha256 required by the server; released assets are never overwritten. Origin is not cryptographically proven. |
 | CodeQL / secret scanning push protection | Not available (needs GHAS) | gitleaks (local + CI), bandit, Grype report. |
 | GHCR private storage | 500 MB (image is larger) | Image tarball attached to the GitHub Release. |
 | Actions minutes | 2,000 min/month | Caching; image build only on release or when `deploy/` changes; about 12 min per PR run. That is roughly 150 PR runs a month. |
