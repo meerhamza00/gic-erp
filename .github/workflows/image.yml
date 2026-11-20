@@ -25,6 +25,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash # = bash -eo pipefail: a failed "docker save | zstd" fails the step
+
 concurrency:
   group: image-${{ github.ref }}-${{ inputs.tag }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -57,6 +61,16 @@ jobs:
             for k in FRAPPE_REF ERPNEXT_REF FRAPPE_BUILD_IMAGE FRAPPE_BASE_IMAGE; do echo "$k=${!k}"; done
           } >> "$GITHUB_ENV"
 
+      # The image (~4 GB unpacked), its build cache and the tarball do not fit in the runner's
+      # default free space. Remove preinstalled toolchains this job never uses (~25 GB).
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /usr/share/swift /usr/local/share/powershell
+          sudo docker image prune -af >/dev/null
+          df -h /
+
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Build
@@ -83,8 +97,11 @@ jobs:
           mkdir -p dist
           file="dist/gic-erp-${VERSION}-amd64.tar.zst"
           docker save "gicnext/gic-erp:${VERSION}" | zstd -19 -T0 -q -o "$file"
+          size="$(stat -c %s "$file")"
+          [ "$size" -gt 100000000 ] || { echo "::error::$file is only $size bytes: the save failed"; exit 1; }
           (cd dist && sha256sum "$(basename "$file")" > "$(basename "$file").sha256")
           ls -lh dist
+          df -h /
 
       - name: Rehearse deploys (first deploy, site, redeploy, rollback)
         run: deploy/ci/rehearse-deploy.sh "$VERSION" "dist/gic-erp-${VERSION}-amd64.tar.zst"
