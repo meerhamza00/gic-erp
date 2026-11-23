@@ -3,7 +3,8 @@
 # remote-deploy.sh that production uses (Traefik off, everything else identical).
 #
 #   1. first deploy on an empty server        -> stack comes up
-#   2. create a client site (ERPNext + gic_erp) -> ping, GICNEXT login page, assets
+#   2. onboard a client with onboard-client.sh -> ping, login page, assets, blueprint,
+#      SITES_RULE, saved credentials; re-run refused, --resume creates nothing new
 #   3. redeploy over a live site              -> backup + migrate + health check
 #   4. deploy a deliberately broken release   -> must fail and roll back automatically
 #   5. refusals: no .sha256, bad checksum, changed compose.yaml -> must not deploy
@@ -74,17 +75,26 @@ stage "$tarball" "$version"
 deploy "v$version"
 end
 
-step "2. create site $site and check it"
-admin_password="$(openssl rand -hex 16)"
-echo "::add-mask::$admin_password"
-compose exec -T backend bench new-site "$site" \
-	--db-root-password "$db_password" --admin-password "$admin_password" \
-	--mariadb-user-host-login-scope=% --install-app erpnext --install-app gic_erp
+step "2. onboard a client site with onboard-client.sh and check it"
+onboard() { bash "$repo/deploy/server/onboard-client.sh" "$@"; }
+onboard "$site" "GIC Smoke Foundry" "Foundry & Cookware"
 expect /api/method/ping pong
 expect /login GICNEXT
 fetch /assets/gic_erp/images/gicnext-logo.png >/dev/null && echo "ok: logo asset served"
 apps="$(compose exec -T backend bench --site "$site" list-apps)"
 grep -q gic_erp <<<"$apps" && echo "ok: gic_erp installed"
+item="$(compose exec -T backend bench --site "$site" execute frappe.db.get_value --args '["Item", "Non-Stick Karahi 28cm", "item_code"]')"
+grep -q "Non-Stick Karahi" <<<"$item" && echo "ok: blueprint loaded"
+grep -q "SITES_RULE=Host(\`$site\`)" "$root/gicnext.conf" && echo "ok: site added to SITES_RULE"
+[ "$(stat -c %a "$root/credentials/$site" 2>/dev/null || stat -f %Lp "$root/credentials/$site")" = 600 ] \
+	&& echo "ok: credentials saved root-only"
+if onboard "$site" "GIC Smoke Foundry" "Foundry & Cookware" 2>/dev/null; then
+	echo "Onboarding an existing site without --resume should be refused" >&2
+	exit 1
+fi
+echo "ok: refused to onboard an existing site"
+rerun="$(onboard "$site" "GIC Smoke Foundry" "Foundry & Cookware" --resume)"
+grep -q '"created": 0' <<<"$rerun" && echo "ok: --resume re-run creates nothing new"
 end
 
 step "3. redeploy over a live site (backup, migrate, health)"

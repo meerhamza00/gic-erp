@@ -123,23 +123,43 @@ checked as above). `local-deploy.sh` refuses a server that is not there.
 First deploy: staging via Actions → Deploy → Run workflow with the latest tag; production
 with `deploy/local-deploy.sh vX.Y.Z PROD_SERVER`.
 
-## 4. First site and new client sites
+## 4. Onboarding a client (one command)
 
-On the server, as root (`sudo -i`; the `gicnext` user has no docker access):
+Point the client's domain (A record) at the server, then on the server as root
+(`sudo -i`; the `gicnext` user has no docker access):
 
 ```bash
-cd /opt/gicnext
-dc() { docker compose --project-name gicnext --env-file gicnext.conf -f compose.yaml "$@"; }
-set -a; . ./gicnext.conf; set +a
-
-dc exec backend bench new-site erp.client.pk \
-  --db-root-password "$DB_PASSWORD" --admin-password 'choose-a-strong-one' \
-  --mariadb-user-host-login-scope=% --install-app erpnext --install-app gic_erp
+/opt/gicnext/bin/onboard-client.sh erp.acme.pk "Acme Cookware Pvt Ltd" "Foundry & Cookware"
 ```
 
-Add the site to `SITES_RULE` in `gicnext.conf`, for example
-``SITES_RULE=Host(`erp.client.pk`) || Host(`erp.other.pk`)``, then apply it with
-`dc up -d frontend`. Traefik gets the Let's Encrypt certificate on the first request.
+Blueprints: `"Foundry & Cookware"`, `"Mandi & Wholesale Trader"`, `"Importer & Exporter"`,
+`"Sanitary Ware & Ceramics"`. In about 3 to 5 minutes it:
+
+1. checks the domain, company name and blueprint, and that the site does not exist yet;
+2. creates the site with ERPNext and gic_erp and a generated Administrator password;
+3. completes ERPNext's setup for a Pakistani company (PKR, Asia/Karachi, Standard chart of
+   accounts, fiscal year **July to June**; change with `--fy-start-month 1` for January),
+   saves the GIC Industry Profile for that industry and loads the blueprint (tax templates,
+   items, BOM, customer group and so on);
+4. enables the scheduler;
+5. adds the domain to `SITES_RULE`, so Traefik serves it and gets the Let's Encrypt certificate;
+6. checks the site answers, then prints the Administrator login **once** and saves it
+   root-only in `/opt/gicnext/credentials/<domain>`.
+
+Hand the login to the client and ask them to change the password and create named users.
+
+If it stops half way (DNS, disk, a typo in the blueprint data), fix the cause and run the
+same command with `--resume`; it finishes the site without creating anything twice. To start
+over instead, drop the site:
+
+```bash
+cd /opt/gicnext && set -a && . ./gicnext.conf && set +a
+docker compose --project-name gicnext --env-file gicnext.conf -f compose.yaml exec backend \
+  bench drop-site erp.acme.pk --db-root-password "$DB_PASSWORD" --no-backup
+```
+
+One server holds many clients: each gets its own site and database (multi-tenant on one
+bench), and every deploy migrates and health-checks all of them.
 
 ## 5. What a deploy does (`deploy/server/remote-deploy.sh`)
 

@@ -131,7 +131,7 @@ rollback() {
 log "starting $version"
 start_version "$version" || rollback
 if list="$(sites 2>/dev/null)" && [ -z "$list" ]; then
-	log "no sites yet: create the first one (see docs/DEVOPS.md, 'First site')"
+	log "no sites yet: onboard the first client with onboard-client.sh (docs/DEVOPS.md, section 4)"
 fi
 healthy || rollback
 
