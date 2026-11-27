@@ -32,7 +32,7 @@ x-backend-defaults: &backend_defaults
 services:
   # ---------------------------------------------------------------- edge
   traefik:
-    image: traefik:v3.7.19
+    image: traefik:v3.8.0
     profiles: [proxy]
     restart: unless-stopped
     command:
